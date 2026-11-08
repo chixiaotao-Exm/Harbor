@@ -1,0 +1,16 @@
+# 构建产物
+/harbor
+/harbor.new
+*.exe
+
+# 前端依赖与产物
+web/node_modules/
+web/dist/
+
+# 本地数据
+/data/
+_d/
+_d2/
+
+# 临时
+*.log

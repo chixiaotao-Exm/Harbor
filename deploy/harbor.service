@@ -1,0 +1,25 @@
+[Unit]
+Description=Harbor batch account workbench
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/harbor
+ExecStart=/opt/harbor/harbor -addr 0.0.0.0:1321 -data /opt/harbor/data
+Restart=on-failure
+RestartSec=5
+
+# 只读系统其余部分即可
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/harbor
+
+# 需要放开时再调
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
