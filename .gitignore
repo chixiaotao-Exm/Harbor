@@ -5,7 +5,8 @@
 
 # 前端依赖与产物
 web/node_modules/
-web/dist/
+web/dist/*
+!web/dist/index.html
 
 # 本地数据
 /data/
