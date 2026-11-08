@@ -35,6 +35,20 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
   go build -trimpath -ldflags="-s -w" -o harbor ./cmd/harbor
 ```
 
+带版本号的发布包用脚本出（版本从标签或 `VERSION` 取）：
+
+```bash
+VERSION=v1.0.0 bash deploy/build.sh     # 产物在 dist/
+./harbor -version                        # 核对版本
+```
+
+## 版本管理
+
+`main` 保持可发布，改动走 `feat/*`、`fix/*` 分支提 PR。
+版本号、提交规范、发布步骤见 [CONTRIBUTING.md](CONTRIBUTING.md)，变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+
+打 `v*` 标签会触发 CI 自动出包并建 Release；推 `main` 与开 PR 会跑格式、vet、测试、前端构建与交叉编译。
+
 ## 部署（Ubuntu 24.04）
 
 ```bash

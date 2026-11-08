@@ -1,0 +1,82 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+          cache: true
+
+      - name: 依赖
+        run: go mod download
+
+      - name: 格式
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            echo "以下文件未格式化："
+            echo "$out"
+            exit 1
+          fi
+
+      - name: 静态检查
+        run: go vet ./...
+
+      - name: 测试
+        run: go test -race -timeout 180s ./...
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 前端构建
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: 交叉编译
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -trimpath -ldflags="-s -w" -o /tmp/harbor ./cmd/harbor
+          /tmp/harbor -version || true
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: check
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 构建
+        run: VERSION="${GITHUB_REF_NAME}" bash deploy/build.sh
+
+      - name: 发布
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/harbor
+            dist/harbor.service
+          generate_release_notes: true

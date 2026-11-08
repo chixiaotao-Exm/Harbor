@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -29,11 +30,18 @@ func main() {
 		dataDir    = flag.String("data", "./data", "数据目录")
 		webDir     = flag.String("web", "", "前端产物目录，留空用内嵌产物")
 		check      = flag.Bool("check", false, "只做自检并退出")
+		showVer    = flag.Bool("version", false, "打印版本并退出")
 		schemaDump = flag.Bool("schema", false, "打印建表语句并退出")
 	)
 	flag.Parse()
 
+	if *showVer {
+		fmt.Printf("harbor %s (commit %s, built %s)\n", Version, Commit, BuildTime)
+		return
+	}
+
 	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	log.Info("版本", "ver", Version, "commit", Commit)
 
 	if err := os.MkdirAll(*dataDir, 0o750); err != nil {
 		log.Error("建数据目录失败", "err", err)
@@ -69,7 +77,8 @@ func main() {
 	rn.Enqueue = func(ctx context.Context, ids []int64, proxy string) (int, error) {
 		return eng.Start(ctx, ids, proxy)
 	}
-	srv := &api.Server{Store: st, Cfg: cfg, Log: log, WebDir: *webDir, Hub: hub, Runner: rn, MFA: eng}
+	srv := &api.Server{Store: st, Cfg: cfg, Log: log, WebDir: *webDir, Hub: hub, Runner: rn, MFA: eng,
+		Version: Version, Commit: Commit, BuildTime: BuildTime}
 	if *webDir == "" {
 		if embedded, err := webassets.FS(); err == nil {
 			srv.WebFS = embedded

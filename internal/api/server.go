@@ -32,7 +32,11 @@ type Server struct {
 	WebFS  fs.FS
 	Hub    *events.Hub
 	Runner *runner.Runner
-	MFA    *mfa.Engine
+
+	Version   string
+	Commit    string
+	BuildTime string
+	MFA       *mfa.Engine
 }
 
 // New 构造路由。
@@ -42,6 +46,7 @@ func New(s *Server) http.Handler {
 	r.Use(middleware.RealIP)
 
 	r.Get("/api/health", s.handleHealth)
+	r.Get("/api/version", s.handleVersion)
 	r.Route("/api", func(api chi.Router) {
 		api.Get("/settings", s.handleGetSettings)
 		api.Put("/settings", s.handlePutSettings)
@@ -69,6 +74,12 @@ func New(s *Server) http.Handler {
 
 	r.Handle("/*", s.static())
 	return r
+}
+
+func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{
+		"version": s.Version, "commit": s.Commit, "built": s.BuildTime,
+	})
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
