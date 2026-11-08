@@ -12,7 +12,7 @@ import (
 func TestNormalizeCleansDirty(t *testing.T) {
 	cases := map[string]string{
 		// 串内空格（本次故障原样）
-		"socks5h://123waddsad-region-US-sid-vb5yexrK-t-5: 123wadasd  @us.arxlabs.io:3010": "socks5h://123waddsad-region-US-sid-vb5yexrK-t-5:123wadasd@us.arxlabs.io:3010",
+		"socks5h://user-region-US-sid-ABCD1234-t-5: p@ss  w0rd  @us.proxy.example:3010": "socks5h://user-region-US-sid-ABCD1234-t-5:p@ssw0rd@us.proxy.example:3010",
 		"  socks5://u:p@h:1  ": "socks5://u:p@h:1",
 		"socks5://u:p@h:1\n":   "socks5://u:p@h:1",
 		"socks5://u：p＠h：3010":  "socks5://u:p@h:3010",

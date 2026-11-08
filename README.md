@@ -52,7 +52,25 @@ bash deploy/upgrade.sh          # 备份 → 换版 → 重启 → 验活，失�
 bash deploy/backup.sh           # 备份库与配置，保留 14 份
 ```
 
-直接监听 `0.0.0.0:1321`，可用 http://45.67.219.166:1321 访问；要走域名再单独加 nginx server 块。
+脚本里的 `HARBOR_HOST` 默认是 `root@YOUR_SERVER_IP`，先改掉或用环境变量覆盖：
+
+```bash
+export HARBOR_HOST=root@1.2.3.4
+```
+
+直接监听 `0.0.0.0:1321`，可用 `http://<服务器IP>:1321` 访问；要走域名再单独加 nginx server 块。
+
+## 配置
+
+密钥与代理不写进仓库，两种填法：页面「设置」里填，或直接改 `data/config.toml.json`（自动生成，600 权限）。
+
+| 字段 | 说明 |
+| --- | --- |
+| `api_key` | 接码平台密钥 |
+| `proxy` | 代理，含 `-region-XX-` 段，切换地区会改写它 |
+| `domain` | 默认邮箱域名 |
+
+环境变量模板见 `.env.example`。
 
 ## 测试
 

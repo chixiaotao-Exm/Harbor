@@ -2,7 +2,7 @@
 # 升级：备份 → 换二进制 → 重启 → 验活。失败自动回滚。
 set -euo pipefail
 
-HOST="${HARBOR_HOST:-root@45.67.219.166}"
+HOST="${HARBOR_HOST:-root@YOUR_SERVER_IP}"
 DIR=/opt/harbor
 PORT=1321
 STAMP=$(date +%Y%m%d-%H%M%S)

@@ -2,7 +2,7 @@
 # 安装到本机。只新增 /opt/harbor 与 harbor.service，不动现有站点。
 set -euo pipefail
 
-HOST="${HARBOR_HOST:-root@45.67.219.166}"
+HOST="${HARBOR_HOST:-root@YOUR_SERVER_IP}"
 DIR=/opt/harbor
 BIN=harbor
 PORT=1321

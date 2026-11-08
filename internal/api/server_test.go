@@ -25,7 +25,7 @@ func TestSettingsMasking(t *testing.T) {
 	ctx, cancel := Ctx()
 	defer cancel()
 
-	const key = "cpugR2Q6b5sSB5G9Vc5kDksnvxLXkNHf"
+	const key = "TESTKEY-abcd-1234-wxyz-5678"
 	err := s.Store.PutSettings(ctx, store.Settings{
 		APIKey: key, Proxy: "socks5://u:p@h:3010", Domain: "icloud.com",
 		DefaultJobs: 2, DefaultWait: 5, AddPassword: true, AddMFA: true,
@@ -41,7 +41,7 @@ func TestSettingsMasking(t *testing.T) {
 	if v := config.Mask(got.APIKey); v == got.APIKey {
 		t.Fatalf("mask must differ from plain: %q", v)
 	}
-	if v := config.Mask(got.APIKey); v != "cpug…kNHf" {
+	if v := config.Mask(got.APIKey); v != "TEST…5678" {
 		t.Fatalf("unexpected mask %q", v)
 	}
 }
