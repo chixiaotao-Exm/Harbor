@@ -19,6 +19,7 @@ import (
 	"github.com/chixi/harbor/internal/events"
 	"github.com/chixi/harbor/internal/mfa"
 	"github.com/chixi/harbor/internal/netx"
+	"github.com/chixi/harbor/internal/pricing"
 	"github.com/chixi/harbor/internal/runner"
 	"github.com/chixi/harbor/internal/store"
 	"github.com/chixi/harbor/web"
@@ -78,6 +79,7 @@ func main() {
 		return eng.Start(ctx, ids, proxy)
 	}
 	srv := &api.Server{Store: st, Cfg: cfg, Log: log, WebDir: *webDir, Hub: hub, Runner: rn, MFA: eng,
+		Price:   pricing.New(""),
 		Version: Version, Commit: Commit, BuildTime: BuildTime}
 	if *webDir == "" {
 		if embedded, err := webassets.FS(); err == nil {

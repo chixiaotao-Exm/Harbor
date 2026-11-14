@@ -19,6 +19,7 @@ import (
 	"github.com/chixi/harbor/internal/events"
 	"github.com/chixi/harbor/internal/mfa"
 	"github.com/chixi/harbor/internal/netx"
+	"github.com/chixi/harbor/internal/pricing"
 	"github.com/chixi/harbor/internal/runner"
 	"github.com/chixi/harbor/internal/store"
 )
@@ -36,7 +37,10 @@ type Server struct {
 	Version   string
 	Commit    string
 	BuildTime string
-	MFA       *mfa.Engine
+
+	// Price 是带缓存的查价器，首次使用时创建
+	Price *pricing.Client
+	MFA   *mfa.Engine
 }
 
 // New 构造路由。
@@ -65,6 +69,7 @@ func New(s *Server) http.Handler {
 		api.Get("/accounts/{id}/code", s.handleAccountCode)
 		api.Post("/accounts/select", s.handleSelectAll)
 		api.Post("/accounts/export", s.handleExport)
+		api.Post("/accounts/price", s.handleAccountPrice)
 
 		api.Post("/mfa/start", s.handleMFAStart)
 		api.Get("/mfa/board", s.handleMFABoard)
@@ -212,6 +217,10 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	if err := s.Store.PutSettings(r.Context(), cur); err != nil {
 		s.fail(w, err)
 		return
+	}
+	// 出口变了，查价器也跟着换，避免用旧出口
+	if s.Price != nil {
+		s.Price.SetProxy(cur.Proxy)
 	}
 	// 同步落一份到配置文件，便于人工查看与备份。
 	if s.Cfg != nil {

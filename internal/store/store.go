@@ -58,7 +58,7 @@ func (s *Store) Close() error { return s.db.Close() }
 // DB 暴露底层句柄给上层测试用。
 func (s *Store) DB() *sql.DB { return s.db }
 
-const schemaVersion = 2
+const schemaVersion = 3
 
 func (s *Store) migrate(ctx context.Context) error {
 	stmts := []string{
@@ -92,6 +92,11 @@ func (s *Store) migrate(ctx context.Context) error {
 			mfa_state TEXT NOT NULL DEFAULT 'none',
 			attempts INTEGER NOT NULL DEFAULT 0,
 			error TEXT NOT NULL DEFAULT '',
+			price_country TEXT NOT NULL DEFAULT '',
+			price_currency TEXT NOT NULL DEFAULT '',
+			price_plus REAL NOT NULL DEFAULT 0,
+			price_pro REAL NOT NULL DEFAULT 0,
+			price_at INTEGER NOT NULL DEFAULT 0,
 			created_at INTEGER NOT NULL,
 			updated_at INTEGER NOT NULL
 		)`,
@@ -147,6 +152,25 @@ func (s *Store) migrate(ctx context.Context) error {
 			if _, err := s.db.ExecContext(ctx,
 				`ALTER TABLE settings ADD COLUMN region TEXT NOT NULL DEFAULT 'US'`); err != nil {
 				return fmt.Errorf("migrate v2: %w", err)
+			}
+		}
+		// v3：账号表补查价字段（旧库没有）
+		cols := []struct{ name, decl string }{
+			{"price_country", "TEXT NOT NULL DEFAULT ''"},
+			{"price_currency", "TEXT NOT NULL DEFAULT ''"},
+			{"price_plus", "REAL NOT NULL DEFAULT 0"},
+			{"price_pro", "REAL NOT NULL DEFAULT 0"},
+			{"price_at", "INTEGER NOT NULL DEFAULT 0"},
+		}
+		for _, c := range cols {
+			var n int
+			_ = s.db.QueryRowContext(ctx,
+				`SELECT COUNT(*) FROM pragma_table_info('accounts') WHERE name=?`, c.name).Scan(&n)
+			if n == 0 {
+				if _, err := s.db.ExecContext(ctx,
+					`ALTER TABLE accounts ADD COLUMN `+c.name+` `+c.decl); err != nil {
+					return fmt.Errorf("migrate v3 %s: %w", c.name, err)
+				}
 			}
 		}
 		_, err = s.db.ExecContext(ctx,

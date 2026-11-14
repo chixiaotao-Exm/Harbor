@@ -186,6 +186,13 @@ const dict: Dict = {
   'lang.switch': ['EN', '中文'],
   'lang.title': ['切换语言', 'Switch language'],
 
+  'acc.col.region': ['地区', 'Region'],
+  'acc.col.price': ['优惠价', 'Promo price'],
+  'acc.checkPrice': ['查优惠价', 'Check price'],
+  'acc.priced': ['已查 {n} 个账号', 'Priced {n} accounts'],
+  'acc.priceFailed': ['查价失败', 'Price lookup failed'],
+  'acc.priceNone': ['未查', 'not checked'],
+  'acc.pricePromo': ['有优惠', 'promo'],
   'region.none': ['没有匹配的地区', 'No matching region'],
   'region.count': ['{n} 个地区', '{n} regions'],
 }

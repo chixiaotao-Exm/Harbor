@@ -86,8 +86,16 @@ type Account struct {
 	MFAState    string
 	Attempts    int
 	Error       string
-	CreatedAt   int64
-	UpdatedAt   int64
+
+	// 查价结果，账号页据此标注地区与价格
+	PriceCountry  string
+	PriceCurrency string
+	PricePlus     float64
+	PricePro      float64
+	PriceAt       int64
+
+	CreatedAt int64
+	UpdatedAt int64
 }
 
 // InsertAccount 写入新账号，返回 id。

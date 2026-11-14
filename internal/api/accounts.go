@@ -19,6 +19,12 @@ type accountView struct {
 	Attempts int    `json:"attempts"`
 	Error    string `json:"error"`
 	Created  int64  `json:"created_at"`
+
+	PriceCountry  string  `json:"price_country"`
+	PriceCurrency string  `json:"price_currency"`
+	PricePlus     float64 `json:"price_plus"`
+	PricePro      float64 `json:"price_pro"`
+	PriceAt       int64   `json:"price_at"`
 }
 
 func (s *Server) handleListAccounts(w http.ResponseWriter, r *http.Request) {
@@ -48,6 +54,8 @@ func (s *Server) handleListAccounts(w http.ResponseWriter, r *http.Request) {
 			ID: a.ID, Email: a.Email, Password: a.Password, Secret: a.TotpSecret,
 			Name: a.Name, IP: a.IP, MFAState: a.MFAState, Attempts: a.Attempts,
 			Error: a.Error, Created: a.CreatedAt,
+			PriceCountry: a.PriceCountry, PriceCurrency: a.PriceCurrency,
+			PricePlus: a.PricePlus, PricePro: a.PricePro, PriceAt: a.PriceAt,
 		})
 	}
 	pages := (total + size - 1) / size

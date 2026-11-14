@@ -14,6 +14,11 @@ type Acc = {
   attempts: number
   error: string
   created_at: number
+  price_country: string
+  price_currency: string
+  price_plus: number
+  price_pro: number
+  price_at: number
 }
 
 const kind = ref<'mfa' | 'plain'>('mfa')
@@ -113,6 +118,35 @@ async function selectAllPages() {
   const j = await r.json()
   picked.value = new Set<number>(j.ids ?? [])
   msg.value = tf('acc.selected', { n: j.total })
+}
+
+// 查优惠价：选中就查选中的，没选就查全部
+async function checkPrice() {
+  busy.value = true
+  try {
+    const ids = [...picked.value]
+    const r = await fetch('/api/accounts/price', {
+      method: 'POST',
+      body: JSON.stringify({ ids, all: ids.length === 0 }),
+    })
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}))
+      toast(j.error ?? t('acc.priceFailed'))
+      return
+    }
+    const j = await r.json()
+    toast(tf('acc.priced', { n: j.ok }))
+    await load()
+  } finally {
+    busy.value = false
+  }
+}
+
+// 价格显示：货币符号 + 金额，附优惠标记
+function priceText(r: Acc) {
+  if (!r.price_at) return ''
+  const n = r.price_plus.toLocaleString(undefined, { maximumFractionDigits: 2 })
+  return `${r.price_currency} ${n}`
 }
 
 function clearPicked() {
@@ -219,6 +253,7 @@ onMounted(() => {
         <option :value="100">{{ tf('acc.perPage', { n: 100 }) }}</option>
       </select>
       <button class="btn-ghost" @click="selectAllPages">{{ tf('acc.selectAll', { n: total }) }}</button>
+      <button class="btn-ghost" :disabled="busy" @click="checkPrice">{{ t('acc.checkPrice') }}</button>
       <button class="btn-ghost" @click="clearPicked">{{ t('acc.clearPick') }}</button>
       <span class="muted">{{ tf('acc.selected', { n: picked.size }) }}</span>
       <span v-if="msg" class="muted">{{ msg }}</span>
@@ -234,6 +269,8 @@ onMounted(() => {
           <th>{{ t('acc.col.password') }}</th>
           <th v-if="kind === 'mfa'">{{ t('acc.col.secret') }}</th>
           <th v-if="kind === 'mfa'">{{ t('acc.col.code') }}</th>
+          <th>{{ t('acc.col.region') }}</th>
+          <th>{{ t('acc.col.price') }}</th>
           <th>{{ t('acc.col.state') }}</th>
           <th style="width: 78px">{{ t('acc.col.actions') }}</th>
         </tr>
@@ -262,6 +299,11 @@ onMounted(() => {
             </button>
             <span v-else class="muted">—</span>
           </td>
+          <td class="mono">{{ r.price_country || '—' }}</td>
+          <td class="mono">
+            <span v-if="r.price_at">{{ priceText(r) }}</span>
+            <span v-else class="muted">{{ t('acc.priceNone') }}</span>
+          </td>
           <td>
             <span class="tag" :class="{ ok: r.mfa_state === 'ok', bad: r.mfa_state === 'fail' }">
               {{ r.mfa_state === 'ok' ? t('acc.state.bound') : r.mfa_state === 'fail' ? t('acc.state.fail') : r.mfa_state }}
@@ -271,7 +313,7 @@ onMounted(() => {
             <button class="btn-ghost" style="padding: 4px 6px; font-size: 12px" @click="copyAll(r)">{{ t('acc.copyRow') }}</button>
           </td>
         </tr>
-        <tr v-if="!rows.length"><td colspan="7" class="empty">{{ t('acc.emptyPage') }}</td></tr>
+        <tr v-if="!rows.length"><td colspan="9" class="empty">{{ t('acc.emptyPage') }}</td></tr>
       </tbody>
     </table>
 
