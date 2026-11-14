@@ -185,6 +185,9 @@ const dict: Dict = {
 
   'lang.switch': ['EN', '中文'],
   'lang.title': ['切换语言', 'Switch language'],
+
+  'region.none': ['没有匹配的地区', 'No matching region'],
+  'region.count': ['{n} 个地区', '{n} regions'],
 }
 
 /** Translate one key. Extra args fill {placeholders} in order. */

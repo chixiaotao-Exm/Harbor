@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
+import RegionSelect from '../components/RegionSelect.vue'
 import { tf, regionLabel } from '../i18n'
 
 type Region = { code: string; zh: string; en: string }
@@ -124,9 +125,7 @@ function rememberSoon() {
     <p class="hint">{{ tf('settings.proxyHint', {}) }}</p>
 
     <label class="f">{{ tf('settings.region', {}) }}</label>
-    <select v-model="v.region">
-      <option v-for="r in regions" :key="r.code" :value="r.code">{{ regionLabel(r) }}</option>
-    </select>
+    <RegionSelect v-model="v.region" :regions="regions" />
     <p class="hint">{{ tf('settings.regionHint', {}) }} · {{ regionHint }}</p>
   </div>
 

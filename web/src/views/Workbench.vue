@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
+import RegionSelect from '../components/RegionSelect.vue'
 import { tf, regionLabel } from '../i18n'
 import { ensureLive, loadBalance, useLive, clearLogs } from '../live'
 
@@ -46,7 +47,8 @@ async function loadRegion() {
 }
 
 // 切换地区即写回设置，代理串由后端改写
-async function changeRegion() {
+async function changeRegion(code?: string) {
+  if (typeof code === 'string' && code) region.value = code
   regionBusy.value = true
   try {
     const rs = await fetch('/api/settings')
@@ -144,9 +146,12 @@ onMounted(() => {
           {{ tf('work.region', {}) }}
           <span v-if="regionBusy" class="muted"> · {{ tf('work.regionBusy', {}) }}</span>
         </label>
-        <select v-model="region" :disabled="regionBusy || stat.running" @change="changeRegion">
-          <option v-for="r in regions" :key="r.code" :value="r.code">{{ regionLabel(r) }}</option>
-        </select>
+        <RegionSelect
+          v-model="region"
+          :regions="regions"
+          :disabled="regionBusy || stat.running"
+          @select="changeRegion"
+        />
       </div>
     </div>
     <div class="check">
