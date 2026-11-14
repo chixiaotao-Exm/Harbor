@@ -22,7 +22,7 @@ type Settings struct {
 func DefaultSettings() Settings {
 	return Settings{
 		Domain:      "icloud.com",
-		Region:      "US",
+		Region:      "RAND",
 		DefaultJobs: 1,
 		DefaultWait: 5,
 		AddPassword: true,

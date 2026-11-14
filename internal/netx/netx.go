@@ -81,7 +81,11 @@ func Normalize(proxy string) string {
 }
 
 // WithRegion rewrites the region segment (for example -region-US-) in place.
-// An empty or unknown code leaves the proxy untouched.
+//
+// RandCode strips the segment so the provider picks any exit; when no segment
+// exists (after a random pick, say) a country code is inserted just before
+// -sid- / -session- so switching back still works. An empty or unknown code
+// leaves the proxy untouched.
 func WithRegion(proxy, code string) string {
 	p := Normalize(proxy)
 	if p == "" || code == "" {
@@ -91,7 +95,23 @@ func WithRegion(proxy, code string) string {
 	if !ValidRegion(code) {
 		return p
 	}
-	return regionPattern.ReplaceAllString(p, `${1}`+code)
+
+	hasRegion := regionPattern.MatchString(p)
+	switch {
+	case code == RandCode && hasRegion:
+		return regionPattern.ReplaceAllString(p, "")
+	case code == RandCode:
+		return p
+	case hasRegion:
+		return regionPattern.ReplaceAllString(p, `${1}`+code)
+	}
+
+	// 没有 region 段：插到 sid / session 标记之前，保持厂商格式
+	loc := sidPattern.FindStringIndex(p)
+	if loc == nil {
+		return p
+	}
+	return p[:loc[0]] + "-region-" + code + p[loc[0]:]
 }
 
 // RegionOf reads the region code out of a proxy, empty when absent.
@@ -101,19 +121,6 @@ func RegionOf(proxy string) string {
 		return ""
 	}
 	return strings.ToUpper(m[2])
-}
-
-// Regions are the country codes the UI offers.
-var Regions = []string{"US", "GB", "JP", "DE", "SG", "CA", "AU", "NL", "FR"}
-
-// ValidRegion reports whether code is in Regions.
-func ValidRegion(code string) bool {
-	for _, r := range Regions {
-		if r == strings.ToUpper(code) {
-			return true
-		}
-	}
-	return false
 }
 
 // Rotate rewrites the sid / session segment with a fresh token.

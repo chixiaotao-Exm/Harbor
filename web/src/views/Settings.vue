@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+
+import { tf, regionLabel } from '../i18n'
+
+type Region = { code: string; zh: string; en: string }
 
 type View = {
   api_key_masked: string
@@ -19,7 +23,7 @@ const v = ref<View>({
   proxy_masked: '',
   has_api_key: false,
   proxy_host: '',
-  region: 'US',
+  region: 'RAND',
   domain: 'icloud.com',
   default_jobs: 1,
   default_wait: 5,
@@ -31,7 +35,12 @@ const key = ref('')
 const proxy = ref('')
 const msg = ref('')
 const bad = ref(false)
-const regions = ref<string[]>(['US'])
+const regions = ref<Region[]>([])
+
+const regionHint = computed(() => {
+  const r = regions.value.find((x) => x.code === v.value.region)
+  return r ? regionLabel(r) : v.value.region
+})
 
 async function load() {
   const r = await fetch('/api/settings')
@@ -59,13 +68,14 @@ async function save() {
   const r = await fetch('/api/settings', { method: 'PUT', body: JSON.stringify(body) })
   if (!r.ok) {
     bad.value = true
-    msg.value = (await r.json().catch(() => ({ error: '保存失败' }))).error
+    const j = await r.json().catch(() => ({}))
+    msg.value = j.error ?? tf('settings.saveFailed', {})
     return
   }
   v.value = await r.json()
   key.value = ''
   proxy.value = ''
-  msg.value = '已保存'
+  msg.value = tf('settings.saved', {})
 }
 
 onMounted(async () => {
@@ -89,46 +99,50 @@ function rememberSoon() {
 <template>
   <div class="head">
     <div>
-      <h1>设置</h1>
-      <p>密钥与代理只存在本机，接口返回打码</p>
+      <h1>{{ tf('settings.title', {}) }}</h1>
+      <p>{{ tf('settings.sub', {}) }}</p>
     </div>
   </div>
 
   <div class="card">
-    <h2>接码平台</h2>
-    <label class="f">API Key</label>
+    <h2>{{ tf('settings.sms', {}) }}</h2>
+    <label class="f">{{ tf('settings.apiKey', {}) }}</label>
     <input
       v-model="key"
-      :placeholder="v.has_api_key ? v.api_key_masked : '粘贴 API Key'"
+      :placeholder="v.has_api_key ? v.api_key_masked : tf('settings.apiKeyPh', {})"
       @paste="rememberSoon"
       @change="remember"
     />
-    <p class="hint">留空则沿用已保存的值</p>
+    <p class="hint">{{ tf('settings.keepExisting', {}) }}</p>
 
-    <label class="f">代理（socks5://用户-region-XX-sid-XXXX-密码@主机:端口）</label>
-    <input v-model="proxy" :placeholder="v.proxy_host || 'socks5://user-region-US-sid-abc:pass@host:3010'" @change="remember" />
-    <p class="hint">多余空格、换行、全角冒号会自动清掉；不写协议自动补 socks5h://</p>
+    <label class="f">{{ tf('settings.proxy', {}) }}</label>
+    <input
+      v-model="proxy"
+      :placeholder="v.proxy_host || 'socks5://user-region-US-sid-abc:pass@host:3010'"
+      @change="remember"
+    />
+    <p class="hint">{{ tf('settings.proxyHint', {}) }}</p>
 
-    <label class="f">出口地区</label>
+    <label class="f">{{ tf('settings.region', {}) }}</label>
     <select v-model="v.region">
-      <option v-for="r in regions" :key="r" :value="r">{{ r }}</option>
+      <option v-for="r in regions" :key="r.code" :value="r.code">{{ regionLabel(r) }}</option>
     </select>
-    <p class="hint">写入代理串的 region-XX 段，工作台可直接切换</p>
+    <p class="hint">{{ tf('settings.regionHint', {}) }} · {{ regionHint }}</p>
   </div>
 
   <div class="card">
-    <h2>默认行为</h2>
+    <h2>{{ tf('settings.defaults', {}) }}</h2>
     <div class="grid cols-3">
       <div>
-        <label class="f">默认数量</label>
+        <label class="f">{{ tf('settings.defaultCount', {}) }}</label>
         <input v-model.number="v.default_jobs" type="number" min="1" />
       </div>
       <div>
-        <label class="f">默认间隔（秒）</label>
+        <label class="f">{{ tf('settings.defaultDelay', {}) }}</label>
         <input v-model.number="v.default_wait" type="number" min="0" />
       </div>
       <div>
-        <label class="f">邮箱域名</label>
+        <label class="f">{{ tf('work.domain', {}) }}</label>
         <select v-model="v.domain">
           <option>icloud.com</option>
           <option>gmail.com</option>
@@ -139,19 +153,19 @@ function rememberSoon() {
     <div class="check">
       <label class="switch">
         <input v-model="v.add_password" type="checkbox" />
-        <span class="track"></span><span>开户时写入随机密码</span>
+        <span class="track"></span><span>{{ tf('settings.addPassword', {}) }}</span>
       </label>
     </div>
     <div class="check">
       <label class="switch">
         <input v-model="v.add_mfa" type="checkbox" />
-        <span class="track"></span><span>开户后自动投双因子队列</span>
+        <span class="track"></span><span>{{ tf('settings.addMFA', {}) }}</span>
       </label>
     </div>
   </div>
 
   <div class="row">
-    <button class="btn-primary" @click="save">保存</button>
+    <button class="btn-primary" @click="save">{{ tf('settings.save', {}) }}</button>
     <span v-if="msg" :style="{ color: bad ? 'var(--danger)' : 'var(--ok)' }">{{ msg }}</span>
   </div>
 </template>

@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
+import { t, tf } from '../i18n'
 import { ensureLive, useLive } from '../live'
 
 type Row = { id: number; email: string; q: number }
 type Failed = { id: number; email: string; reason: string; times: number }
 
 const phases = [
-  { q: 1, name: 'Q1 校验登录态' },
-  { q: 2, name: 'Q2 账号密码登录' },
-  { q: 3, name: 'Q3 提交双因子登记' },
-  { q: 4, name: 'Q4 动态码激活' },
-  { q: 5, name: 'Q5 收尾确认' },
+  { q: 1, key: 'async.q1' },
+  { q: 2, key: 'async.q2' },
+  { q: 3, key: 'async.q3' },
+  { q: 4, key: 'async.q4' },
+  { q: 5, key: 'async.q5' },
 ]
 
 const rows = ref<Row[]>([])
@@ -60,19 +61,20 @@ async function retry(all: boolean) {
   const ids = all ? [] : [...picked.value]
   const r = await fetch('/api/mfa/retry', { method: 'POST', body: JSON.stringify({ ids, all }) })
   if (!r.ok) {
-    msg.value = (await r.json().catch(() => ({ error: '重试失败' }))).error
+    const j = await r.json().catch(() => ({}))
+    msg.value = j.error ?? t('acc.pushFailed')
     return
   }
   const j = await r.json()
-  msg.value = `已重投 ${j.queued} 条`
+  msg.value = tf('async.retried', { n: j.queued })
   picked.value = new Set()
   await loadBoard()
 }
 
 async function startAll() {
   const r = await fetch('/api/mfa/start', { method: 'POST', body: JSON.stringify({ all: true }) })
-  const j = await r.json().catch(() => ({ queued: 0, error: '投递失败' }))
-  msg.value = j.error ?? `已投递 ${j.queued} 条`
+  const j = await r.json().catch(() => ({ queued: 0 }))
+  msg.value = j.error ?? tf('async.queued', { n: j.queued })
   await loadBoard()
 }
 
@@ -90,12 +92,12 @@ onBeforeUnmount(() => {
 <template>
   <div class="head">
     <div>
-      <h1>异步任务</h1>
-      <p>每步失败会自动重试 3 次并换出口，超限落失败页</p>
+      <h1>{{ t('async.title') }}</h1>
+      <p>{{ t('async.sub') }}</p>
     </div>
     <div class="row">
-      <button class="btn-primary" :disabled="running" @click="startAll">投递未绑账号</button>
-      <button class="btn-plain" :disabled="!failed.length" @click="retry(true)">全部重试</button>
+      <button class="btn-primary" :disabled="running" @click="startAll">{{ t('async.pushAll') }}</button>
+      <button class="btn-plain" :disabled="!failed.length" @click="retry(true)">{{ t('async.retryAll') }}</button>
     </div>
   </div>
 
@@ -103,31 +105,39 @@ onBeforeUnmount(() => {
 
   <div class="board">
     <div v-for="p in phases" :key="p.q" class="phase">
-      <h3>{{ p.name }} <b>{{ byQ(p.q).length }}</b></h3>
+      <h3>{{ t(p.key) }} <b>{{ byQ(p.q).length }}</b></h3>
       <div class="items">
         <div v-for="r in byQ(p.q)" :key="r.id" class="job">{{ r.email }}</div>
-        <p v-if="!byQ(p.q).length" class="empty">空</p>
+        <p v-if="!byQ(p.q).length" class="empty">{{ t('async.empty') }}</p>
       </div>
     </div>
   </div>
 
   <div class="split" style="margin-top: 14px">
     <div class="card">
-      <h2>日志<span class="muted" style="font-weight: 400; margin-left: 8px">最新在上</span></h2>
+      <h2>
+        {{ t('async.logs') }}
+        <span class="muted" style="font-weight: 400; margin-left: 8px">{{ t('work.newestFirst') }}</span>
+      </h2>
       <div class="log" style="height: 300px">
         <div v-for="l in logs" :key="l.t + l.m" v-memo="[l.t, l.m]" class="l">
           <span class="t">{{ l.t }}</span><span class="m">{{ l.m }}</span>
         </div>
-        <p v-if="!logs.length" class="empty">队列跑起来后这里会显示每一步在做什么</p>
+        <p v-if="!logs.length" class="empty">{{ t('async.logEmpty') }}</p>
       </div>
     </div>
 
     <div class="card">
-      <h2>工作明细</h2>
+      <h2>{{ t('async.items') }}</h2>
       <div class="items-scroll">
         <table>
           <thead>
-            <tr><th>账号</th><th>IP</th><th>环节</th><th>状态</th></tr>
+            <tr>
+              <th>{{ t('work.col.email') }}</th>
+              <th>{{ t('work.col.ip') }}</th>
+              <th>{{ t('work.col.stage') }}</th>
+              <th>{{ t('work.col.state') }}</th>
+            </tr>
           </thead>
           <tbody>
             <tr v-for="it in items" :key="it.email || it.stage" v-memo="[it.stage, it.state, it.note, it.ip]">
@@ -136,11 +146,11 @@ onBeforeUnmount(() => {
               <td class="muted">{{ it.stage }}<span v-if="it.note"> · {{ it.note }}</span></td>
               <td>
                 <span class="tag" :class="{ ok: it.state === 'ok', bad: it.state === 'fail', run: it.state === 'running' }">
-                  {{ it.state === 'ok' ? '成功' : it.state === 'fail' ? '失败' : '进行中' }}
+                  {{ it.state === 'ok' ? t('work.state.ok') : it.state === 'fail' ? t('work.state.fail') : t('work.state.running') }}
                 </span>
               </td>
             </tr>
-            <tr v-if="!items.length"><td colspan="4" class="empty">还没有明细</td></tr>
+            <tr v-if="!items.length"><td colspan="4" class="empty">{{ t('work.itemsEmpty') }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -149,15 +159,20 @@ onBeforeUnmount(() => {
 
   <div class="card">
     <div class="row" style="justify-content: space-between">
-      <h2 style="margin: 0">失败页（{{ failed.length }}）</h2>
+      <h2 style="margin: 0">{{ tf('async.failed', { n: failed.length }) }}</h2>
       <div class="row">
-        <button class="btn-ghost" @click="toggleAll">{{ allPicked ? '取消全选' : '全选' }}</button>
-        <button class="btn-plain" :disabled="!picked.size" @click="retry(false)">重试选中</button>
+        <button class="btn-ghost" @click="toggleAll">{{ allPicked ? t('async.unselectAll') : t('async.selectAll') }}</button>
+        <button class="btn-plain" :disabled="!picked.size" @click="retry(false)">{{ t('async.retryPick') }}</button>
       </div>
     </div>
     <table>
       <thead>
-        <tr><th style="width: 36px"></th><th>账号</th><th>原因</th><th>次数</th></tr>
+        <tr>
+          <th style="width: 36px"></th>
+          <th>{{ t('async.col.email') }}</th>
+          <th>{{ t('async.col.reason') }}</th>
+          <th>{{ t('async.col.times') }}</th>
+        </tr>
       </thead>
       <tbody>
         <tr v-for="f in failed" :key="f.id">
@@ -166,7 +181,7 @@ onBeforeUnmount(() => {
           <td class="muted">{{ f.reason }}</td>
           <td class="mono">{{ f.times }}</td>
         </tr>
-        <tr v-if="!failed.length"><td colspan="4" class="empty">没有失败</td></tr>
+        <tr v-if="!failed.length"><td colspan="4" class="empty">{{ t('async.noFail') }}</td></tr>
       </tbody>
     </table>
   </div>

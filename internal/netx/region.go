@@ -1,0 +1,255 @@
+package netx
+
+import "strings"
+
+// Region is one exit region the proxy provider offers.
+//
+// Code goes into the proxy string's -region-XX- segment; ZH/EN are display
+// names so the UI can render in either language.
+type Region struct {
+	Code string `json:"code"`
+	ZH   string `json:"zh"`
+	EN   string `json:"en"`
+}
+
+// RandCode asks the provider to pick any region. It is not a country code:
+// selecting it strips the region segment entirely.
+const RandCode = "RAND"
+
+// regionTable is ordered by importance: the ones people actually pick first,
+// then everything else alphabetically.
+var regionTable = []Region{
+	{RandCode, "全球随机", "Global (random)"},
+
+	{"US", "美国", "United States"},
+	{"DE", "德国", "Germany"},
+	{"SG", "新加坡", "Singapore"},
+	{"FR", "法国", "France"},
+	{"GB", "英国", "United Kingdom"},
+	{"JP", "日本", "Japan"},
+	{"TH", "泰国", "Thailand"},
+	{"VN", "越南", "Vietnam"},
+
+	{"AD", "安道尔", "Andorra"},
+	{"AE", "阿拉伯联合酋长国", "United Arab Emirates"},
+	{"AF", "阿富汗", "Afghanistan"},
+	{"AG", "安提瓜和巴布达", "Antigua and Barbuda"},
+	{"AI", "安圭拉", "Anguilla"},
+	{"AL", "阿尔巴尼亚", "Albania"},
+	{"AM", "亚美尼亚", "Armenia"},
+	{"AO", "安哥拉", "Angola"},
+	{"AR", "阿根廷", "Argentina"},
+	{"AT", "奥地利", "Austria"},
+	{"AU", "澳大利亚", "Australia"},
+	{"AZ", "阿塞拜疆", "Azerbaijan"},
+	{"BA", "波斯尼亚和黑塞哥维那", "Bosnia and Herzegovina"},
+	{"BB", "巴巴多斯", "Barbados"},
+	{"BD", "孟加拉国", "Bangladesh"},
+	{"BE", "比利时", "Belgium"},
+	{"BF", "布基纳法索", "Burkina Faso"},
+	{"BG", "保加利亚", "Bulgaria"},
+	{"BH", "巴林", "Bahrain"},
+	{"BI", "布隆迪", "Burundi"},
+	{"BJ", "贝宁", "Benin"},
+	{"BM", "百慕大群岛", "Bermuda"},
+	{"BN", "文莱达鲁萨兰国", "Brunei"},
+	{"BO", "玻利维亚", "Bolivia"},
+	{"BR", "巴西", "Brazil"},
+	{"BS", "巴哈马群岛", "Bahamas"},
+	{"BT", "不丹", "Bhutan"},
+	{"BW", "博茨瓦纳", "Botswana"},
+	{"BY", "白俄罗斯", "Belarus"},
+	{"BZ", "伯利兹", "Belize"},
+	{"CA", "加拿大", "Canada"},
+	{"CC", "科科斯（基林）群岛", "Cocos (Keeling) Islands"},
+	{"CD", "刚果民主共和国", "DR Congo"},
+	{"CF", "中部非洲", "Central African Republic"},
+	{"CG", "刚果", "Congo"},
+	{"CH", "瑞士", "Switzerland"},
+	{"CI", "科特迪瓦", "Côte d'Ivoire"},
+	{"CL", "智利", "Chile"},
+	{"CM", "喀麦隆", "Cameroon"},
+	{"CO", "哥伦比亚", "Colombia"},
+	{"CR", "哥斯达黎加", "Costa Rica"},
+	{"CU", "古巴", "Cuba"},
+	{"CV", "佛得角", "Cape Verde"},
+	{"CY", "塞浦路斯", "Cyprus"},
+	{"CZ", "捷克共和国", "Czechia"},
+	{"DJ", "吉布提", "Djibouti"},
+	{"DK", "丹麦", "Denmark"},
+	{"DM", "多米尼加", "Dominica"},
+	{"DO", "多米尼加共和国", "Dominican Republic"},
+	{"DZ", "阿尔及利亚", "Algeria"},
+	{"EC", "厄瓜多尔", "Ecuador"},
+	{"EE", "爱沙尼亚", "Estonia"},
+	{"EG", "埃及", "Egypt"},
+	{"ES", "西班牙", "Spain"},
+	{"ET", "埃塞俄比亚", "Ethiopia"},
+	{"FI", "芬兰", "Finland"},
+	{"FJ", "斐济", "Fiji"},
+	{"GA", "加蓬", "Gabon"},
+	{"GD", "格林纳达", "Grenada"},
+	{"GE", "格鲁吉亚", "Georgia"},
+	{"GF", "法属圭亚那", "French Guiana"},
+	{"GH", "加纳", "Ghana"},
+	{"GI", "直布罗陀", "Gibraltar"},
+	{"GL", "格陵兰岛", "Greenland"},
+	{"GM", "冈比亚", "Gambia"},
+	{"GN", "几内亚", "Guinea"},
+	{"GP", "瓜德罗普岛", "Guadeloupe"},
+	{"GQ", "赤道几内亚", "Equatorial Guinea"},
+	{"GR", "希腊", "Greece"},
+	{"GS", "南乔治亚和南桑威奇群岛", "South Georgia and the South Sandwich Islands"},
+	{"GT", "危地马拉", "Guatemala"},
+	{"GU", "关岛", "Guam"},
+	{"GW", "几内亚比绍", "Guinea-Bissau"},
+	{"GY", "圭亚那", "Guyana"},
+	{"HK", "中国香港", "Hong Kong"},
+	{"HN", "洪都拉斯", "Honduras"},
+	{"HR", "克罗地亚", "Croatia"},
+	{"HT", "海地", "Haiti"},
+	{"HU", "匈牙利", "Hungary"},
+	{"ID", "印度尼西亚", "Indonesia"},
+	{"IE", "爱尔兰", "Ireland"},
+	{"IL", "以色列", "Israel"},
+	{"IN", "印度", "India"},
+	{"IQ", "伊拉克", "Iraq"},
+	{"IR", "伊朗", "Iran"},
+	{"IS", "冰岛", "Iceland"},
+	{"IT", "意大利", "Italy"},
+	{"JM", "牙买加", "Jamaica"},
+	{"JO", "约旦", "Jordan"},
+	{"KE", "肯尼亚", "Kenya"},
+	{"KH", "柬埔寨", "Cambodia"},
+	{"KI", "基里巴斯", "Kiribati"},
+	{"KM", "科摩罗", "Comoros"},
+	{"KN", "圣基茨和尼维斯", "Saint Kitts and Nevis"},
+	{"KR", "韩国", "South Korea"},
+	{"KW", "科威特", "Kuwait"},
+	{"KY", "开曼群岛", "Cayman Islands"},
+	{"KZ", "哈萨克斯坦", "Kazakhstan"},
+	{"LA", "老挝", "Laos"},
+	{"LB", "黎巴嫩", "Lebanon"},
+	{"LC", "圣卢西亚", "Saint Lucia"},
+	{"LI", "列支敦士登", "Liechtenstein"},
+	{"LK", "斯里兰卡", "Sri Lanka"},
+	{"LR", "利比里亚", "Liberia"},
+	{"LS", "莱索托", "Lesotho"},
+	{"LT", "立陶宛", "Lithuania"},
+	{"LU", "卢森堡", "Luxembourg"},
+	{"LV", "拉脱维亚", "Latvia"},
+	{"LY", "利比亚", "Libya"},
+	{"MC", "摩纳哥", "Monaco"},
+	{"MD", "摩尔多瓦", "Moldova"},
+	{"ME", "黑山", "Montenegro"},
+	{"MG", "马达加斯加", "Madagascar"},
+	{"MH", "马绍尔群岛", "Marshall Islands"},
+	{"ML", "马里", "Mali"},
+	{"MM", "缅甸", "Myanmar"},
+	{"MN", "蒙古", "Mongolia"},
+	{"MO", "中国澳门", "Macau"},
+	{"MQ", "马提尼克岛", "Martinique"},
+	{"MS", "蒙特塞拉特", "Montserrat"},
+	{"MT", "马耳他", "Malta"},
+	{"MU", "毛里求斯", "Mauritius"},
+	{"MV", "马尔代夫", "Maldives"},
+	{"MW", "马拉维", "Malawi"},
+	{"MX", "墨西哥", "Mexico"},
+	{"MY", "马来西亚", "Malaysia"},
+	{"MZ", "莫桑比克", "Mozambique"},
+	{"NA", "纳米比亚", "Namibia"},
+	{"NC", "新喀里多尼亚", "New Caledonia"},
+	{"NE", "尼日尔", "Niger"},
+	{"NF", "诺福克群岛", "Norfolk Island"},
+	{"NG", "尼日利亚", "Nigeria"},
+	{"NI", "尼加拉瓜", "Nicaragua"},
+	{"NL", "荷兰", "Netherlands"},
+	{"NO", "挪威", "Norway"},
+	{"NP", "尼泊尔", "Nepal"},
+	{"NR", "瑙鲁", "Nauru"},
+	{"NZ", "新西兰", "New Zealand"},
+	{"OM", "阿曼", "Oman"},
+	{"PA", "巴拿马", "Panama"},
+	{"PE", "秘鲁", "Peru"},
+	{"PH", "菲律宾", "Philippines"},
+	{"PK", "巴基斯坦", "Pakistan"},
+	{"PL", "波兰", "Poland"},
+	{"PR", "波多黎各", "Puerto Rico"},
+	{"PS", "巴勒斯坦", "Palestine"},
+	{"PT", "葡萄牙", "Portugal"},
+	{"PW", "帕劳", "Palau"},
+	{"PY", "巴拉圭", "Paraguay"},
+	{"QA", "卡塔尔", "Qatar"},
+	{"RO", "罗马尼亚", "Romania"},
+	{"RS", "塞尔维亚", "Serbia"},
+	{"RU", "俄罗斯", "Russia"},
+	{"RW", "卢旺达", "Rwanda"},
+	{"SA", "沙特阿拉伯", "Saudi Arabia"},
+	{"SB", "所罗门群岛", "Solomon Islands"},
+	{"SC", "塞舌尔", "Seychelles"},
+	{"SD", "苏丹", "Sudan"},
+	{"SE", "瑞典", "Sweden"},
+	{"SI", "斯洛文尼亚", "Slovenia"},
+	{"SK", "斯洛伐克", "Slovakia"},
+	{"SL", "塞拉利昂", "Sierra Leone"},
+	{"SM", "圣马力诺", "San Marino"},
+	{"SN", "塞内加尔", "Senegal"},
+	{"SO", "索马里", "Somalia"},
+	{"SR", "苏里南", "Suriname"},
+	{"SS", "南苏丹", "South Sudan"},
+	{"ST", "圣多美和普林西比", "São Tomé and Príncipe"},
+	{"SV", "萨尔瓦多", "El Salvador"},
+	{"SY", "叙利亚", "Syria"},
+	{"SZ", "斯威士兰", "Eswatini"},
+	{"TD", "乍得", "Chad"},
+	{"TG", "多哥", "Togo"},
+	{"TJ", "塔吉克斯坦", "Tajikistan"},
+	{"TL", "东帝汶", "Timor-Leste"},
+	{"TM", "土库曼斯坦", "Turkmenistan"},
+	{"TN", "突尼斯", "Tunisia"},
+	{"TO", "汤加", "Tonga"},
+	{"TR", "土耳其", "Turkey"},
+	{"TT", "特立尼达和多巴哥", "Trinidad and Tobago"},
+	{"TW", "中国台湾", "Taiwan"},
+	{"TZ", "坦桑尼亚", "Tanzania"},
+	{"UA", "乌克兰", "Ukraine"},
+	{"UG", "乌干达", "Uganda"},
+	{"UY", "乌拉圭", "Uruguay"},
+	{"UZ", "乌兹别克斯坦", "Uzbekistan"},
+	{"VE", "委内瑞拉", "Venezuela"},
+	{"VG", "英属维尔京群岛", "British Virgin Islands"},
+	{"VI", "美属维尔京群岛", "U.S. Virgin Islands"},
+	{"VU", "瓦努阿图", "Vanuatu"},
+	{"WS", "萨摩亚", "Samoa"},
+	{"YE", "也门", "Yemen"},
+	{"ZA", "南非", "South Africa"},
+	{"ZM", "赞比亚", "Zambia"},
+	{"ZW", "津巴布韦", "Zimbabwe"},
+}
+
+// Regions returns the full table, safe for callers to read.
+func Regions() []Region {
+	out := make([]Region, len(regionTable))
+	copy(out, regionTable)
+	return out
+}
+
+// FindRegion looks a region up by code (case-insensitive).
+func FindRegion(code string) (Region, bool) {
+	want := strings.ToUpper(strings.TrimSpace(code))
+	if want == "" {
+		return Region{}, false
+	}
+	for _, r := range regionTable {
+		if r.Code == want {
+			return r, true
+		}
+	}
+	return Region{}, false
+}
+
+// ValidRegion reports whether code is a known region or RandCode.
+func ValidRegion(code string) bool {
+	_, ok := FindRegion(code)
+	return ok
+}

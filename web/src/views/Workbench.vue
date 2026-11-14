@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
+import { tf, regionLabel } from '../i18n'
 import { ensureLive, loadBalance, useLive, clearLogs } from '../live'
-import type { Item } from '../live'
+
+type Region = { code: string; zh: string; en: string }
 
 const form = ref({ count: 1, threads: 1, delay: 5, domain: 'icloud.com', auto_enqueue: true })
 const { stat, items, logs, balance } = useLive()
 const err = ref('')
-const region = ref('US')
-const regions = ref<string[]>(['US'])
+const region = ref('RAND')
+const regions = ref<Region[]>([])
 const regionBusy = ref(false)
 
 const canStart = computed(() => !stat.value.running)
@@ -60,7 +62,9 @@ async function changeRegion() {
         add_mfa: cur.add_mfa,
       }),
     })
-    addLog(new Date().toTimeString().slice(0, 8), `出口地区已切换为 ${region.value}`)
+    const picked = regions.value.find((x) => x.code === region.value)
+    const label = picked ? regionLabel(picked) : region.value
+    addLog(new Date().toTimeString().slice(0, 8), tf('work.regionChanged', { region: label }))
     await loadBalance()
   } finally {
     regionBusy.value = false
@@ -72,7 +76,8 @@ async function start() {
   clearLogs()
   const r = await fetch('/api/run/start', { method: 'POST', body: JSON.stringify(form.value) })
   if (!r.ok) {
-    err.value = (await r.json().catch(() => ({ error: '启动失败' }))).error
+    const j = await r.json().catch(() => ({}))
+    err.value = j.error ?? tf('work.startFailed', {})
     return
   }
   await refreshStat()
@@ -91,43 +96,43 @@ onMounted(() => {
 <template>
   <div class="head">
     <div>
-      <h1>工作台</h1>
-      <p>一条任务一个出口，取号串行，跑完一单再补下一单</p>
+      <h1>{{ tf('work.title', {}) }}</h1>
+      <p>{{ tf('work.sub', {}) }}</p>
     </div>
     <div class="row">
-      <button class="btn-primary" :disabled="!canStart" @click="start">开工</button>
-      <button class="btn-plain" :disabled="canStart" @click="stop">停止</button>
+      <button class="btn-primary" :disabled="!canStart" @click="start">{{ tf('work.start', {}) }}</button>
+      <button class="btn-plain" :disabled="canStart" @click="stop">{{ tf('work.stop', {}) }}</button>
     </div>
   </div>
 
   <p v-if="err" class="hint" style="color: var(--danger)">{{ err }}</p>
 
   <div class="stats">
-    <div class="stat"><span>余额</span><b style="font-size: 22px">{{ balance }}</b></div>
-    <div class="stat ok"><span>成功</span><b>{{ stat.ok }}</b></div>
-    <div class="stat bad"><span>失败</span><b>{{ stat.fail }}</b></div>
-    <div class="stat"><span>成功率</span><b>{{ stat.rate.toFixed(1) }}%</b></div>
+    <div class="stat"><span>{{ tf('work.balance', {}) }}</span><b style="font-size: 22px">{{ balance }}</b></div>
+    <div class="stat ok"><span>{{ tf('work.ok', {}) }}</span><b>{{ stat.ok }}</b></div>
+    <div class="stat bad"><span>{{ tf('work.fail', {}) }}</span><b>{{ stat.fail }}</b></div>
+    <div class="stat"><span>{{ tf('work.rate', {}) }}</span><b>{{ stat.rate.toFixed(1) }}%</b></div>
   </div>
 
   <div class="card">
-    <h2>参数</h2>
+    <h2>{{ tf('work.params', {}) }}</h2>
     <div class="grid cols-3">
       <div>
-        <label class="f">数量</label>
+        <label class="f">{{ tf('work.count', {}) }}</label>
         <input v-model.number="form.count" type="number" min="1" />
       </div>
       <div>
-        <label class="f">并发</label>
+        <label class="f">{{ tf('work.threads', {}) }}</label>
         <input v-model.number="form.threads" type="number" min="1" max="8" />
       </div>
       <div>
-        <label class="f">间隔（秒）</label>
+        <label class="f">{{ tf('work.delay', {}) }}</label>
         <input v-model.number="form.delay" type="number" min="0" />
       </div>
     </div>
     <div class="grid cols-2">
       <div>
-        <label class="f">邮箱域名</label>
+        <label class="f">{{ tf('work.domain', {}) }}</label>
         <select v-model="form.domain">
           <option>icloud.com</option>
           <option>gmail.com</option>
@@ -135,9 +140,12 @@ onMounted(() => {
         </select>
       </div>
       <div>
-        <label class="f">出口地区<span v-if="regionBusy" class="muted"> · 切换中</span></label>
+        <label class="f">
+          {{ tf('work.region', {}) }}
+          <span v-if="regionBusy" class="muted"> · {{ tf('work.regionBusy', {}) }}</span>
+        </label>
         <select v-model="region" :disabled="regionBusy || stat.running" @change="changeRegion">
-          <option v-for="r in regions" :key="r" :value="r">{{ r }}</option>
+          <option v-for="r in regions" :key="r.code" :value="r.code">{{ regionLabel(r) }}</option>
         </select>
       </div>
     </div>
@@ -145,29 +153,37 @@ onMounted(() => {
       <label class="switch">
         <input v-model="form.auto_enqueue" type="checkbox" />
         <span class="track"></span>
-        <span>开户成功后自动投递到异步任务（绑双因子）</span>
+        <span>{{ tf('work.autoEnqueue', {}) }}</span>
       </label>
     </div>
-    <p class="hint">数量是总配额，并发是同时在跑的槽位；任一时刻在手邮箱不会超过并发数。</p>
+    <p class="hint">{{ tf('work.hint', {}) }}</p>
   </div>
 
   <div class="split">
     <div class="card">
-      <h2>日志<span class="muted" style="font-weight: 400; margin-left: 8px">最新在上</span></h2>
+      <h2>
+        {{ tf('work.logs', {}) }}
+        <span class="muted" style="font-weight: 400; margin-left: 8px">{{ tf('work.newestFirst', {}) }}</span>
+      </h2>
       <div class="log" style="height: 300px">
         <div v-for="l in logs" :key="l.t + l.m + logs.length" v-memo="[l.t, l.m]" class="l">
           <span class="t">{{ l.t }}</span><span class="m">{{ l.m }}</span>
         </div>
-        <p v-if="!logs.length" class="empty">开工后这里会逐条显示谁在做什么</p>
+        <p v-if="!logs.length" class="empty">{{ tf('work.logEmpty', {}) }}</p>
       </div>
     </div>
 
     <div class="card">
-      <h2>工作明细</h2>
+      <h2>{{ tf('work.items', {}) }}</h2>
       <div class="items-scroll">
         <table>
           <thead>
-            <tr><th>账号</th><th>IP</th><th>环节</th><th>状态</th></tr>
+            <tr>
+              <th>{{ tf('work.col.email', {}) }}</th>
+              <th>{{ tf('work.col.ip', {}) }}</th>
+              <th>{{ tf('work.col.stage', {}) }}</th>
+              <th>{{ tf('work.col.state', {}) }}</th>
+            </tr>
           </thead>
           <tbody>
             <tr v-for="it in items" :key="it.email || it.stage" v-memo="[it.stage, it.state, it.note, it.ip]">
@@ -176,11 +192,11 @@ onMounted(() => {
               <td class="muted">{{ it.stage }}<span v-if="it.note"> · {{ it.note }}</span></td>
               <td>
                 <span class="tag" :class="{ ok: it.state === 'ok', bad: it.state === 'fail', run: it.state === 'running' }">
-                  {{ it.state === 'ok' ? '成功' : it.state === 'fail' ? '失败' : '进行中' }}
+                  {{ it.state === 'ok' ? tf('work.state.ok', {}) : it.state === 'fail' ? tf('work.state.fail', {}) : tf('work.state.running', {}) }}
                 </span>
               </td>
             </tr>
-            <tr v-if="!items.length"><td colspan="4" class="empty">还没有明细</td></tr>
+            <tr v-if="!items.length"><td colspan="4" class="empty">{{ tf('work.itemsEmpty', {}) }}</td></tr>
           </tbody>
         </table>
       </div>

@@ -71,7 +71,7 @@ func (s *Store) migrate(ctx context.Context) error {
 			api_key TEXT NOT NULL DEFAULT '',
 			proxy TEXT NOT NULL DEFAULT '',
 			domain TEXT NOT NULL DEFAULT 'icloud.com',
-			region TEXT NOT NULL DEFAULT 'US',
+			region TEXT NOT NULL DEFAULT 'RAND',
 			default_jobs INTEGER NOT NULL DEFAULT 1,
 			default_wait INTEGER NOT NULL DEFAULT 5,
 			add_password INTEGER NOT NULL DEFAULT 1,

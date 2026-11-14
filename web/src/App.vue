@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
+import { lang, tf, toggleLang } from './i18n'
+
 const counts = ref({ mfa: 0, plain: 0 })
 const ready = ref(false)
 
@@ -37,26 +39,29 @@ onMounted(() => {
         <div class="brand-mark">H</div>
         <div>
           <div class="brand-name">Harbor</div>
-          <div class="brand-meta">批量开户工作台</div>
+          <div class="brand-meta">{{ tf('app.subtitle', {}) }}</div>
         </div>
       </div>
       <nav class="nav">
-        <div class="nav-group">运行</div>
-        <RouterLink to="/" exact-active-class="active">工作台</RouterLink>
+        <div class="nav-group">{{ tf('nav.group.run', {}) }}</div>
+        <RouterLink to="/" exact-active-class="active">{{ tf('nav.workbench', {}) }}</RouterLink>
         <RouterLink to="/async" active-class="active">
-          异步任务
+          {{ tf('nav.async', {}) }}
           <span class="pill">Q1–Q5</span>
         </RouterLink>
-        <div class="nav-group">数据</div>
+        <div class="nav-group">{{ tf('nav.group.data', {}) }}</div>
         <RouterLink to="/accounts" active-class="active">
-          账号
+          {{ tf('nav.accounts', {}) }}
           <span class="pill">{{ counts.mfa + counts.plain }}</span>
         </RouterLink>
-        <div class="nav-group">配置</div>
-        <RouterLink to="/settings" active-class="active">设置</RouterLink>
+        <div class="nav-group">{{ tf('nav.group.config', {}) }}</div>
+        <RouterLink to="/settings" active-class="active">{{ tf('nav.settings', {}) }}</RouterLink>
       </nav>
       <div class="side-foot">
-        已绑双因子 {{ counts.mfa }} · 未绑 {{ counts.plain }}
+        <button class="lang-btn" :title="tf('lang.title', {})" @click="toggleLang">
+          {{ lang === 'zh' ? 'EN' : '中文' }}
+        </button>
+        <span>{{ tf('nav.foot', { mfa: counts.mfa, plain: counts.plain }) }}</span>
       </div>
     </aside>
     <main class="main">

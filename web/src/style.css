@@ -164,6 +164,25 @@ a {
   padding: 14px 26px;
   font: 11px/1.5 var(--mono);
   color: var(--dim);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 语言切换 */
+.lang-btn {
+  align-self: flex-start;
+  padding: 4px 12px;
+  font: 600 11px var(--mono);
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--muted);
+}
+
+.lang-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .main {

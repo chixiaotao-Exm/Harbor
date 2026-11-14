@@ -26,7 +26,7 @@ func (s *Server) handleBalance(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "raw": raw})
 }
 
-// handleRegions 下发可选地区。
+// handleRegions 下发可选地区（含中英名与「全球随机」）。
 func (s *Server) handleRegions(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"regions": netx.Regions})
+	writeJSON(w, http.StatusOK, map[string]any{"regions": netx.Regions()})
 }
