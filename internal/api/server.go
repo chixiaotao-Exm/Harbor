@@ -70,6 +70,7 @@ func New(s *Server) http.Handler {
 		api.Post("/accounts/select", s.handleSelectAll)
 		api.Post("/accounts/export", s.handleExport)
 		api.Post("/accounts/price", s.handleAccountPrice)
+		api.Post("/accounts/session", s.handleAccountSession)
 
 		api.Post("/mfa/start", s.handleMFAStart)
 		api.Get("/mfa/board", s.handleMFABoard)

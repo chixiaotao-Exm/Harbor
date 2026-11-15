@@ -19,6 +19,7 @@ type Acc = {
   price_plus: number
   price_pro: number
   price_at: number
+  session_at: number
 }
 
 const kind = ref<'mfa' | 'plain'>('mfa')
@@ -142,6 +143,28 @@ async function checkPrice() {
   }
 }
 
+// 刷新会话：用账号自己的密码+双因子登录，取 /api/auth/session
+async function refreshSession() {
+  busy.value = true
+  try {
+    const ids = [...picked.value]
+    const r = await fetch('/api/accounts/session', {
+      method: 'POST',
+      body: JSON.stringify({ ids, all: ids.length === 0 }),
+    })
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}))
+      toast(j.error ?? tf('acc.sessionDone', { n: 0, f: 0 }))
+      return
+    }
+    const j = await r.json()
+    toast(tf('acc.sessionDone', { n: j.ok, f: j.failed }))
+    await load()
+  } finally {
+    busy.value = false
+  }
+}
+
 // 价格显示：货币符号 + 金额，附优惠标记
 function priceText(r: Acc) {
   if (!r.price_at) return ''
@@ -254,6 +277,7 @@ onMounted(() => {
       </select>
       <button class="btn-ghost" @click="selectAllPages">{{ tf('acc.selectAll', { n: total }) }}</button>
       <button class="btn-ghost" :disabled="busy" @click="checkPrice">{{ t('acc.checkPrice') }}</button>
+      <button class="btn-ghost" :disabled="busy" @click="refreshSession">{{ t('acc.refreshSession') }}</button>
       <button class="btn-ghost" @click="clearPicked">{{ t('acc.clearPick') }}</button>
       <span class="muted">{{ tf('acc.selected', { n: picked.size }) }}</span>
       <span v-if="msg" class="muted">{{ msg }}</span>
@@ -271,6 +295,7 @@ onMounted(() => {
           <th v-if="kind === 'mfa'">{{ t('acc.col.code') }}</th>
           <th>{{ t('acc.col.region') }}</th>
           <th>{{ t('acc.col.price') }}</th>
+          <th>{{ t('acc.col.session') }}</th>
           <th>{{ t('acc.col.state') }}</th>
           <th style="width: 78px">{{ t('acc.col.actions') }}</th>
         </tr>
@@ -305,6 +330,10 @@ onMounted(() => {
             <span v-else class="muted">{{ t('acc.priceNone') }}</span>
           </td>
           <td>
+            <span v-if="r.session_at" class="tag ok">{{ t('acc.sessionOk') }}</span>
+            <span v-else class="muted">{{ t('acc.sessionNone') }}</span>
+          </td>
+          <td>
             <span class="tag" :class="{ ok: r.mfa_state === 'ok', bad: r.mfa_state === 'fail' }">
               {{ r.mfa_state === 'ok' ? t('acc.state.bound') : r.mfa_state === 'fail' ? t('acc.state.fail') : r.mfa_state }}
             </span>
@@ -313,7 +342,7 @@ onMounted(() => {
             <button class="btn-ghost" style="padding: 4px 6px; font-size: 12px" @click="copyAll(r)">{{ t('acc.copyRow') }}</button>
           </td>
         </tr>
-        <tr v-if="!rows.length"><td colspan="9" class="empty">{{ t('acc.emptyPage') }}</td></tr>
+        <tr v-if="!rows.length"><td colspan="10" class="empty">{{ t('acc.emptyPage') }}</td></tr>
       </tbody>
     </table>
 

@@ -93,6 +93,7 @@ type Account struct {
 	PricePlus     float64
 	PricePro      float64
 	PriceAt       int64
+	SessionAt     int64
 
 	CreatedAt int64
 	UpdatedAt int64

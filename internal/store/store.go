@@ -97,6 +97,8 @@ func (s *Store) migrate(ctx context.Context) error {
 			price_plus REAL NOT NULL DEFAULT 0,
 			price_pro REAL NOT NULL DEFAULT 0,
 			price_at INTEGER NOT NULL DEFAULT 0,
+			session_json TEXT NOT NULL DEFAULT '',
+			session_at INTEGER NOT NULL DEFAULT 0,
 			created_at INTEGER NOT NULL,
 			updated_at INTEGER NOT NULL
 		)`,
@@ -161,6 +163,8 @@ func (s *Store) migrate(ctx context.Context) error {
 			{"price_plus", "REAL NOT NULL DEFAULT 0"},
 			{"price_pro", "REAL NOT NULL DEFAULT 0"},
 			{"price_at", "INTEGER NOT NULL DEFAULT 0"},
+			{"session_json", "TEXT NOT NULL DEFAULT ''"},
+			{"session_at", "INTEGER NOT NULL DEFAULT 0"},
 		}
 		for _, c := range cols {
 			var n int

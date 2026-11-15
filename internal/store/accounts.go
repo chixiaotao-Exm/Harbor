@@ -32,7 +32,7 @@ func (s *Store) ListAccounts(ctx context.Context, kind string, page, size int, q
 	sqlText := fmt.Sprintf(
 		`SELECT id,email,password,totp_secret,name,birthdate,proxy,ip,
 			has_password,mfa_state,attempts,error,
-			price_country,price_currency,price_plus,price_pro,price_at,created_at
+			price_country,price_currency,price_plus,price_pro,price_at,session_at,created_at
 		 FROM accounts WHERE %s ORDER BY id DESC LIMIT ? OFFSET ?`, where)
 	pageArgs := append(append([]any{}, args...), size, (page-1)*size)
 	rows, err := s.db.QueryContext(ctx, sqlText, pageArgs...)
@@ -48,7 +48,7 @@ func (s *Store) ListAccounts(ctx context.Context, kind string, page, size int, q
 		if err := rows.Scan(&a.ID, &a.Email, &a.Password, &a.TotpSecret, &a.Name,
 			&a.Birthdate, &a.Proxy, &a.IP, &hp, &a.MFAState, &a.Attempts,
 			&a.Error, &a.PriceCountry, &a.PriceCurrency, &a.PricePlus, &a.PricePro,
-			&a.PriceAt, &a.CreatedAt); err != nil {
+			&a.PriceAt, &a.SessionAt, &a.CreatedAt); err != nil {
 			return nil, 0, err
 		}
 		a.HasPassword = hp == 1

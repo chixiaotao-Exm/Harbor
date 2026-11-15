@@ -25,6 +25,7 @@ type accountView struct {
 	PricePlus     float64 `json:"price_plus"`
 	PricePro      float64 `json:"price_pro"`
 	PriceAt       int64   `json:"price_at"`
+	SessionAt     int64   `json:"session_at"`
 }
 
 func (s *Server) handleListAccounts(w http.ResponseWriter, r *http.Request) {
@@ -56,6 +57,7 @@ func (s *Server) handleListAccounts(w http.ResponseWriter, r *http.Request) {
 			Error: a.Error, Created: a.CreatedAt,
 			PriceCountry: a.PriceCountry, PriceCurrency: a.PriceCurrency,
 			PricePlus: a.PricePlus, PricePro: a.PricePro, PriceAt: a.PriceAt,
+			SessionAt: a.SessionAt,
 		})
 	}
 	pages := (total + size - 1) / size

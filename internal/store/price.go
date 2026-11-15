@@ -29,3 +29,18 @@ func (s *Store) AccountPrice(ctx context.Context, id int64) (PriceInfo, error) {
 		Scan(&p.Country, &p.Currency, &p.Plus, &p.Pro, &p.At)
 	return p, err
 }
+
+// SetAccountCountry 只更新地区标注，价格保持原值。
+func (s *Store) SetAccountCountry(ctx context.Context, id int64, country string) error {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE accounts SET price_country=?, updated_at=? WHERE id=?`,
+		country, now(), id)
+	return affected(res, err)
+}
+
+// SetAccountToken 刷新登录态。
+func (s *Store) SetAccountToken(ctx context.Context, id int64, token string) error {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE accounts SET token=?, updated_at=? WHERE id=?`, token, now(), id)
+	return affected(res, err)
+}

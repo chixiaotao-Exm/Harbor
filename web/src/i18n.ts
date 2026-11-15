@@ -187,6 +187,11 @@ const dict: Dict = {
   'lang.title': ['切换语言', 'Switch language'],
 
   'acc.col.region': ['地区', 'Region'],
+  'acc.col.session': ['会话', 'Session'],
+  'acc.refreshSession': ['刷新会话', 'Refresh session'],
+  'acc.sessionDone': ['已刷新 {n} 个，失败 {f} 个', 'Refreshed {n}, failed {f}'],
+  'acc.sessionNone': ['未刷新', 'not refreshed'],
+  'acc.sessionOk': ['已刷新', 'refreshed'],
   'acc.col.price': ['优惠价', 'Promo price'],
   'acc.checkPrice': ['查优惠价', 'Check price'],
   'acc.priced': ['已查 {n} 个账号', 'Priced {n} accounts'],

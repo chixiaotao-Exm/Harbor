@@ -58,6 +58,18 @@ func (s *Session) Close() {
 	}
 }
 
+// Fetch 用当前会话取一个地址，返回状态码与响应体。
+func (s *Session) Fetch(ctx context.Context, url string) (int, []byte, error) {
+	resp, raw, err := s.do(ctx, http.MethodGet, url, nil, map[string]string{
+		"accept":  "application/json",
+		"referer": home + "/",
+	})
+	if err != nil {
+		return 0, nil, err
+	}
+	return resp.StatusCode, raw, nil
+}
+
 func (s *Session) hdr(extra map[string]string) http.Header {
 	h := http.Header{}
 	for k, v := range s.Profile.Headers() {

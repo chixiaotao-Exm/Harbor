@@ -13,6 +13,49 @@ import (
 
 // PasswordLogin 用账号密码换新登录态，供异步任务在登录态失效时兜底。
 func PasswordLogin(ctx context.Context, s *Session, email, password string) (string, error) {
+	next, err := passwordVerify(ctx, s, email, password)
+	if err != nil {
+		return "", err
+	}
+	if strings.Contains(next, "/mfa-challenge/") {
+		return "", errors.New("账号开了双因子，需要验证码")
+	}
+	token, err := s.Callback(ctx, next)
+	if err != nil {
+		return "", err
+	}
+	if token == "" {
+		return "", errors.New("登录后没拿到登录态")
+	}
+	return token, nil
+}
+
+// PasswordLoginTOTP 带双因子的登录：密码通过后现算验证码走完挑战。
+func PasswordLoginTOTP(ctx context.Context, s *Session, email, password, secret string) (string, error) {
+	next, err := passwordVerify(ctx, s, email, password)
+	if err != nil {
+		return "", err
+	}
+	if strings.Contains(next, "/mfa-challenge/") {
+		if secret == "" {
+			return "", errors.New("账号需要双因子验证码，但没有密钥")
+		}
+		if next, err = solveMFA(ctx, s, next, secret); err != nil {
+			return "", err
+		}
+	}
+	token, err := s.Callback(ctx, next)
+	if err != nil {
+		return "", err
+	}
+	if token == "" {
+		return "", errors.New("登录后没拿到登录态")
+	}
+	return token, nil
+}
+
+// passwordVerify 只提交密码，返回下一步跳转地址（可能是验证页也可能是回调）。
+func passwordVerify(ctx context.Context, s *Session, email, password string) (string, error) {
 	_, raw, err := s.do(ctx, http.MethodGet, home+"/api/auth/csrf", nil,
 		map[string]string{"referer": home + "/"})
 	if err != nil {
@@ -56,7 +99,6 @@ func PasswordLogin(ctx context.Context, s *Session, email, password string) (str
 		return "", err
 	}
 
-	// 密码页
 	h, err := s.authHdr(ctx, "password_verify", authBase+"/log-in/password", nil)
 	if err != nil {
 		return "", err
@@ -77,14 +119,62 @@ func PasswordLogin(ctx context.Context, s *Session, email, password string) (str
 	if out.Continue == "" {
 		return "", errors.New("密码校验后没有跳转地址")
 	}
-	token, err := s.Callback(ctx, out.Continue)
+	return out.Continue, nil
+}
+
+// solveMFA 走完 totp 挑战，返回下一步跳转地址。
+func solveMFA(ctx context.Context, s *Session, challengeURL, secret string) (string, error) {
+	id := challengeURL[strings.LastIndex(challengeURL, "/")+1:]
+	if id == "" || !strings.Contains(challengeURL, "/mfa-challenge/") {
+		return "", fmt.Errorf("认证页地址异常: %s", challengeURL)
+	}
+	page := authBase + "/mfa-challenge/" + id
+	if _, _, err := s.do(ctx, http.MethodGet, page, nil, map[string]string{
+		"accept": "text/html",
+	}); err != nil {
+		return "", err
+	}
+	h, err := s.authHdr(ctx, "mfa_challenge", page, nil)
 	if err != nil {
 		return "", err
 	}
-	if token == "" {
-		return "", errors.New("登录后没拿到登录态")
+
+	issue, _ := json.Marshal(map[string]any{
+		"id": id, "type": "totp", "force_fresh_challenge": false,
+	})
+	resp, raw, err := s.do(ctx, http.MethodPost, authBase+"/api/accounts/mfa/issue_challenge",
+		strings.NewReader(string(issue)), h)
+	if err != nil {
+		return "", err
 	}
-	return token, nil
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("发起挑战 HTTP %d: %s", resp.StatusCode, snippet(raw))
+	}
+
+	code, err := TOTPCode(secret)
+	if err != nil {
+		return "", err
+	}
+	verify, _ := json.Marshal(map[string]string{"id": id, "type": "totp", "code": code})
+	h2, err := s.authHdr(ctx, "mfa_challenge", page, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, raw, err = s.do(ctx, http.MethodPost, authBase+"/api/accounts/mfa/verify",
+		strings.NewReader(string(verify)), h2)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("验证码校验 HTTP %d: %s", resp.StatusCode, snippet(raw))
+	}
+	var out struct {
+		Continue string `json:"continue_url"`
+	}
+	if json.Unmarshal(raw, &out) != nil || out.Continue == "" {
+		return "", errors.New("验证码通过后没有跳转地址")
+	}
+	return out.Continue, nil
 }
 
 // EnrollTOTP 只做登记，返回密钥与登记号。
