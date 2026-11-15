@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -101,38 +102,39 @@ func (s *Server) refreshSession(ctx context.Context, id int64) sessionRow {
 		return res
 	}
 
-	proxy := acc.Proxy
-	if proxy == "" {
-		if st, e := s.Store.GetSettings(ctx); e == nil {
-			proxy = netx.WithRegion(st.Proxy, st.Region)
+	st, _ := s.Store.GetSettings(ctx)
+
+	// 账号自带的代理 sid 常常过期，连不上就换成设置里的新出口重试一次
+	proxies := []string{acc.Proxy}
+	if st.Proxy != "" {
+		region := netx.RegionOf(acc.Proxy)
+		if region == "" || region == netx.RandCode {
+			region = st.Region
+		}
+		proxies = append(proxies, netx.WithRegion(netx.Rotate(st.Proxy), region))
+	}
+
+	var (
+		sum     *sessionSummary
+		token   string
+		raw     []byte
+		lastErr error
+	)
+	for _, proxy := range proxies {
+		if proxy == "" {
+			continue
+		}
+		sum, token, raw, lastErr = s.fetchSession(ctx, acc.Email, acc.Password, acc.TotpSecret, proxy)
+		if lastErr == nil {
+			break
+		}
+		// 只有网络层的问题才值得换出口重试
+		if !transportErr(lastErr) {
+			break
 		}
 	}
-
-	sess, err := flow.New(ctx, proxy)
-	if err != nil {
-		res.Error = "代理不可用: " + err.Error()
-		return res
-	}
-	defer sess.Close()
-
-	token, err := flow.PasswordLoginTOTP(ctx, sess, acc.Email, acc.Password, acc.TotpSecret)
-	if err != nil {
-		res.Error = err.Error()
-		return res
-	}
-
-	code, raw, err := sess.Fetch(ctx, "https://chatgpt.com/api/auth/session")
-	if err != nil {
-		res.Error = "取会话失败: " + err.Error()
-		return res
-	}
-	if code != 200 {
-		res.Error = "取会话 HTTP " + strconv.Itoa(code)
-		return res
-	}
-	sum, err := parseSession(raw)
-	if err != nil {
-		res.Error = err.Error()
+	if lastErr != nil {
+		res.Error = lastErr.Error()
 		return res
 	}
 
@@ -176,4 +178,45 @@ func parseSession(raw []byte) (*sessionSummary, error) {
 		Plan: d.Account.PlanType, Country: d.Statsig.Country, Region: d.Statsig.Region,
 		IP: d.Statsig.IP, Expires: d.Expires, Email: d.User.Email, DeviceID: d.Statsig.DeviceID,
 	}, nil
+}
+
+// fetchSession 用给定出口登录并取一次会话。
+func (s *Server) fetchSession(ctx context.Context, email, password, secret, proxy string) (*sessionSummary, string, []byte, error) {
+	sess, err := flow.New(ctx, proxy)
+	if err != nil {
+		return nil, "", nil, errors.New("代理不可用: " + err.Error())
+	}
+	defer sess.Close()
+
+	token, err := flow.PasswordLoginTOTP(ctx, sess, email, password, secret)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	code, raw, err := sess.Fetch(ctx, "https://chatgpt.com/api/auth/session")
+	if err != nil {
+		return nil, "", nil, err
+	}
+	if code != 200 {
+		return nil, "", nil, errors.New("取会话 HTTP " + strconv.Itoa(code))
+	}
+	sum, err := parseSession(raw)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	return sum, token, raw, nil
+}
+
+// transportErr 判断是不是出口/网络层面的问题，这类才值得换代理重试。
+func transportErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	for _, k := range []string{"EOF", "deadline exceeded", "timeout", "connection reset",
+		"connection refused", "no such host", "proxyconnect"} {
+		if strings.Contains(msg, k) {
+			return true
+		}
+	}
+	return false
 }
